@@ -1,30 +1,52 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>ArcSwap Live</title>
-    <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArcSwap Stable</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js" type="text/javascript"></script>
+    <style>
+        body { background: #0f172a; color: white; font-family: sans-serif; text-align: center; padding-top: 50px; }
+        .card { background: #1e293b; padding: 20px; border-radius: 15px; width: 300px; margin: auto; border: 1px solid #334155; }
+        button { background: #38bdf8; color: #0f172a; border: none; padding: 10px 20px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        #status { font-size: 12px; color: #38bdf8; margin-top: 10px; }
+    </style>
 </head>
-<body style="background-color: #0f172a; color: white; text-align: center; font-family: sans-serif;">
-    <h1>ArcSwap Stable</h1>
-    <button id="connectBtn" onclick="connectWallet()" style="padding: 15px; background: #38bdf8; border-radius: 10px; cursor: pointer;">Connect Wallet</button>
-    <p id="walletAddress"></p>
-    <p id="status"></p>
+<body>
 
-    <script>
-        async function connectWallet() {
-            if (window.ethereum) {
-                try {
-                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    const provider = new ethers.providers.Web3Provider(window.ethereum);
-                    document.getElementById('walletAddress').innerText = "Connected: " + accounts[0];
-                    document.getElementById('connectBtn').innerText = "Connected ✅";
-                } catch (err) {
-                    document.getElementById('status').innerText = "Error: " + err.message;
-                }
-            } else {
-                window.open("https://metamask.app.link/dapp/arc-swap-stable.vercel.app");
-            }
+<div class="card">
+    <h2>ArcSwap Stable</h2>
+    <button id="connectBtn" onclick="connectWallet()">Connect Wallet</button>
+    <p id="walletAddress" style="font-size: 10px; word-break: break-all;"></p>
+    <p id="status"></p>
+</div>
+
+<script>
+    async function connectWallet() {
+        // Check if ethers is loaded
+        if (typeof ethers === 'undefined') {
+            document.getElementById('status').innerText = "Error: Library still loading. Please wait 2 seconds.";
+            return;
         }
-    </script>
+
+        if (window.ethereum) {
+            try {
+                document.getElementById('status').innerText = "Connecting...";
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
+                const address = accounts[0];
+
+                document.getElementById('walletAddress').innerText = "Connected: " + address;
+                document.getElementById('connectBtn').innerText = "Connected ✅";
+                document.getElementById('status').innerText = "Wallet Linked Successfully!";
+            } catch (err) {
+                document.getElementById('status').innerText = "Connection Failed: " + err.message;
+            }
+        } else {
+            window.location.href = "https://metamask.app.link/dapp/arc-swap-stable.vercel.app";
+        }
+    }
+</script>
 </body>
 </html>
