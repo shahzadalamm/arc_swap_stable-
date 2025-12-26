@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArcSwap Stable | Pro</title>
+    <title>ArcSwap Stable | Fixed</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
@@ -25,7 +25,7 @@
     <p id="walletAddress" style="font-size: 10px; color: #94a3b8; margin: 10px 0; word-break: break-all;"></p>
 
     <div class="input-box">
-        <div style="font-size: 12px; text-align: right; color: #38bdf8;" id="tokenBalance">Balance: 0.0</div>
+        <div style="font-size: 12px; text-align: right; color: #38bdf8;" id="tokenBalance">USDC Balance: --</div>
         <input type="number" id="amount" placeholder="0.0">
     </div>
 
@@ -37,26 +37,29 @@
 <script>
     const contractAddress = "0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f";
     const token1Address = "0x2e666c5a4a3db7841f39f88c2226d14d64b79678";
-    let provider, signer, tokenDecimals = 6; // USDC default 6 decimals
+    let provider, signer;
 
     async function connectWallet() {
-        if (window.ethereum) {
-            try {
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                provider = new ethers.providers.Web3Provider(window.ethereum);
-                signer = provider.getSigner();
-                
-                document.getElementById('walletAddress').innerText = accounts[0];
-                document.getElementById('connectBtn').innerText = "Wallet Linked ✅";
-                
-                // Auto-detect decimals to fix balance display
-                const tokenContract = new ethers.Contract(token1Address, ["function decimals() view returns (uint8)"], provider);
-                try {
-                    tokenDecimals = await tokenContract.decimals();
-                } catch (e) { tokenDecimals = 6; } // Fallback to 6
-                
-                await updateBalance(accounts[0]);
-            } catch (err) { document.getElementById('status').innerText = "Connection failed."; }
+        if (!window.ethereum) return alert("Please open in MetaMask Browser!");
+        
+        try {
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            
+            // Network check
+            const network = await provider.getNetwork();
+            if (network.chainId !== 573) {
+                document.getElementById('status').innerText = "⚠️ Switch MetaMask to Arc Testnet!";
+                return;
+            }
+
+            signer = provider.getSigner();
+            document.getElementById('walletAddress').innerText = accounts[0];
+            document.getElementById('connectBtn').innerText = "Connected ✅";
+            
+            updateBalance(accounts[0]);
+        } catch (err) {
+            document.getElementById('status').innerText = "Connection Failed.";
         }
     }
 
@@ -65,36 +68,39 @@
             const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
             const contract = new ethers.Contract(token1Address, erc20Abi, provider);
             const balance = await contract.balanceOf(address);
-            const formatted = ethers.utils.formatUnits(balance, tokenDecimals);
-            document.getElementById('tokenBalance').innerText = "Balance: " + formatted;
-        } catch (e) { document.getElementById('tokenBalance').innerText = "Balance Error"; }
+            // Dynamic check: 2 USDC (6 decimals) will show as 2.0
+            const formatted = ethers.utils.formatUnits(balance, 6);
+            document.getElementById('tokenBalance').innerText = "USDC: " + formatted;
+        } catch (e) {
+            document.getElementById('tokenBalance').innerText = "Wrong Network or Token Address";
+        }
     }
 
     async function approve() {
-        if(!signer) return alert("Connect Wallet!");
+        if(!signer) return alert("Connect Wallet First!");
         try {
             const erc20Abi = ["function approve(address, uint256) public returns (bool)"];
             const contract = new ethers.Contract(token1Address, erc20Abi, signer);
-            const amt = ethers.utils.parseUnits(document.getElementById('amount').value, tokenDecimals);
-            document.getElementById('status').innerText = "Approving...";
+            const amt = ethers.utils.parseUnits(document.getElementById('amount').value, 6);
+            document.getElementById('status').innerText = "Approving USDC...";
             const tx = await contract.approve(contractAddress, amt);
             await tx.wait();
-            document.getElementById('status').innerText = "Approved! Now Swap.";
-        } catch (e) { document.getElementById('status').innerText = "Approve Failed"; }
+            document.getElementById('status').innerText = "Approval Done! Press Swap.";
+        } catch (e) { document.getElementById('status').innerText = "Approve Failed."; }
     }
 
     async function swap() {
-        if(!signer) return alert("Connect Wallet!");
+        if(!signer) return alert("Connect Wallet First!");
         try {
             const swapAbi = ["function swapToken1ForToken2(uint256) external"];
             const contract = new ethers.Contract(contractAddress, swapAbi, signer);
-            const amt = ethers.utils.parseUnits(document.getElementById('amount').value, tokenDecimals);
+            const amt = ethers.utils.parseUnits(document.getElementById('amount').value, 6);
             document.getElementById('status').innerText = "Swapping...";
-            const tx = await contract.swapToken1ForToken2(amt, { gasLimit: 250000 });
+            const tx = await contract.swapToken1ForToken2(amt, { gasLimit: 300000 });
             await tx.wait();
-            document.getElementById('status').innerText = "Swap Successful! 🎉";
+            document.getElementById('status').innerText = "Swap Success! 🎉";
             updateBalance(await signer.getAddress());
-        } catch (e) { document.getElementById('status').innerText = "Swap Failed (Check Gas/Liquidity)"; }
+        } catch (e) { document.getElementById('status').innerText = "Swap Failed (Check Gas/Balance)"; }
     }
 </script>
 </body>
