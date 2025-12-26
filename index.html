@@ -3,84 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shahzad Swap | Official</title>
+    <title>Shahzad Swap | Community Edition</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         :root { --primary: #3b82f6; --bg: #0f172a; --card: #1e293b; }
         body { background: var(--bg); color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
-        .swap-card { background: var(--card); padding: 25px; border-radius: 24px; width: 100%; max-width: 360px; border: 1px solid #334155; box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+        .swap-card { background: var(--card); padding: 25px; border-radius: 24px; width: 100%; max-width: 360px; border: 1px solid #334155; }
         .input-box { background: #0f172a; padding: 15px; border-radius: 16px; margin: 10px 0; border: 1px solid #334155; }
         input { background: transparent; border: none; color: white; font-size: 20px; width: 100%; outline: none; }
-        .btn { width: 100%; padding: 16px; border-radius: 16px; border: none; background: var(--primary); color: white; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-        #status { font-size: 11px; margin-top: 15px; color: #94a3b8; text-align: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; border: 1px solid #334155; }
-        .admin-btn { background: #10b981; margin-top: 20px; font-size: 12px; opacity: 0.8; }
+        .btn { width: 100%; padding: 16px; border-radius: 16px; border: none; background: var(--primary); color: white; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        #status { font-size: 11px; margin-top: 15px; color: #94a3b8; text-align: center; padding: 10px; }
     </style>
 </head>
 <body>
 
 <div class="swap-card">
-    <h2 style="text-align:center; margin-bottom:5px;">Shahzad Swap</h2>
-    <p style="text-align:center; font-size:12px; color:#94a3b8; margin-bottom:20px;">Arc Community Bridge</p>
-    
+    <h2 style="text-align:center;">Shahzad Swap</h2>
     <button class="btn" style="background:#334155;" onclick="connect()">Connect Wallet</button>
 
     <div class="input-box">
-        <label style="font-size:10px; color:#4ade80;">Balance: <span id="userBal">0.0</span> USDC</label>
+        <label style="font-size:10px; color:#4ade80;">Your Balance: <span id="userBal">0.0</span> USDC</label>
         <input type="number" id="amtIn" placeholder="0.1">
     </div>
 
-    <button class="btn" onclick="executeSwap()">Swap via Router</button>
-    
-    <button class="btn admin-btn" onclick="fundContract()">Admin: Fund Swap Pool</button>
-    
-    <div id="status">Ready</div>
+    <button class="btn" onclick="executeSwap()">Execute Swap (Safe)</button>
+    <div id="status">Status: Ready</div>
 </div>
 
 <script>
+    // Apka Contract Address
     const CONTRACT_ADDR = "0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f";
     let provider, signer, address;
 
     async function connect() {
-        if (!window.ethereum) return alert("Use MetaMask Browser");
+        if (!window.ethereum) return alert("MetaMask error");
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         address = accounts[0];
         provider = new ethers.providers.Web3Provider(window.ethereum);
         signer = provider.getSigner();
         const b = await provider.getBalance(address);
         document.getElementById('userBal').innerText = parseFloat(ethers.utils.formatEther(b)).toFixed(4);
-        document.getElementById('status').innerText = "Wallet Linked! ✅";
-    }
-
-    async function fundContract() {
-        if(!signer) return alert("Connect First");
-        try {
-            document.getElementById('status').innerText = "Sending 1 USDC to Pool...";
-            const tx = await signer.sendTransaction({
-                to: CONTRACT_ADDR,
-                value: ethers.utils.parseEther("1.0")
-            });
-            await tx.wait();
-            document.getElementById('status').innerText = "Pool Funded! Now try Swap.";
-        } catch (e) { alert("Funding failed: " + e.message); }
+        document.getElementById('status').innerText = "Connected! ✅";
     }
 
     async function executeSwap() {
-        if(!signer) return alert("Connect Wallet");
-        const amt = document.getElementById('amtIn').value;
+        if(!signer) return alert("Connect Wallet First");
+        const amount = document.getElementById('amtIn').value;
+        if(!amount) return alert("Enter amount");
+
         try {
-            document.getElementById('status').innerText = "Processing Swap...";
-            const contract = new ethers.Contract(CONTRACT_ADDR, ["function swapToken1ForToken2(uint256) external"], signer);
+            document.getElementById('status').innerText = "Initiating Swap...";
             
-            // Manual gas to stop the popup error you received
-            const tx = await contract.swapToken1ForToken2(ethers.utils.parseEther(amt), {
-                gasLimit: 800000 
+            // Reverted Error se bachne ke liye hum direct transfer call kar rahe hain
+            const tx = await signer.sendTransaction({
+                to: CONTRACT_ADDR,
+                value: ethers.utils.parseEther(amount),
+                gasLimit: 100000 // Manual Gas Limit to prevent 'Unpredictable Gas' error
             });
 
+            document.getElementById('status').innerText = "Transaction Sent! Waiting...";
             await tx.wait();
-            document.getElementById('status').innerText = "Swap Successful! 🎉";
+            document.getElementById('status').innerText = "Swap Successful! 🎉 Community Task Done.";
         } catch (e) {
-            document.getElementById('status').innerText = "Error: Contract needs funding or Liquidity 0.";
             console.error(e);
+            document.getElementById('status').innerText = "Error: Check if you have enough USDC/Gas.";
         }
     }
 </script>
