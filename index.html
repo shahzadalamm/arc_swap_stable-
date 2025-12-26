@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArcSwap Stable</title>
+    <title>ArcSwap Stable | Final</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
@@ -25,32 +25,33 @@
     <p id="walletAddress" style="font-size: 10px; color: #94a3b8; margin: 10px 0; word-break: break-all;"></p>
 
     <div class="input-box">
-        <div style="font-size: 11px; text-align: right; color: #38bdf8;" id="tokenBalance">USDC Balance: 0.0</div>
+        <div style="font-size: 11px; text-align: right; color: #38bdf8;" id="tokenBalance">Checking Balance...</div>
         <input type="number" id="amount" placeholder="0.0">
     </div>
 
-    <button class="btn-approve" onclick="approve()">Approve USDC</button>
-    <button class="btn-swap" onclick="swap()">Swap USDC</button>
+    <button class="btn-approve" onclick="approve()">1. Approve</button>
+    <button class="btn-swap" onclick="swap()">2. Swap Now</button>
     <p id="status"></p>
 </div>
 
 <script>
     const contractAddress = "0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f";
     const token1Address = "0x2e666c5a4a3db7841f39f88c2226d14d64b79678";
-    let provider, signer;
+    let provider, signer, tokenDecimals = 18;
 
     async function connectWallet() {
         if (window.ethereum) {
-            try {
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                provider = new ethers.providers.Web3Provider(window.ethereum);
-                signer = provider.getSigner();
-                document.getElementById('walletAddress').innerText = "Connected: " + accounts[0];
-                document.getElementById('connectBtn').innerText = "Connected ✅";
-                updateBalance(accounts[0]);
-            } catch (err) { alert("Connection failed!"); }
-        } else {
-            alert("Please open in MetaMask Browser!");
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            signer = provider.getSigner();
+            document.getElementById('walletAddress').innerText = accounts[0];
+            document.getElementById('connectBtn').innerText = "Wallet Linked ✅";
+            
+            // Get Decimals Automatically
+            const tokenContract = new ethers.Contract(token1Address, ["function decimals() view returns (uint8)"], provider);
+            tokenDecimals = await tokenContract.decimals();
+            
+            updateBalance(accounts[0]);
         }
     }
 
@@ -59,8 +60,8 @@
             const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
             const contract = new ethers.Contract(token1Address, erc20Abi, provider);
             const balance = await contract.balanceOf(address);
-            document.getElementById('tokenBalance').innerText = "USDC: " + ethers.utils.formatUnits(balance, 6);
-        } catch (e) { console.error(e); }
+            document.getElementById('tokenBalance').innerText = "Balance: " + ethers.utils.formatUnits(balance, tokenDecimals);
+        } catch (e) { document.getElementById('tokenBalance').innerText = "Error Loading Balance"; }
     }
 
     async function approve() {
@@ -68,11 +69,11 @@
         try {
             const erc20Abi = ["function approve(address, uint256) public returns (bool)"];
             const contract = new ethers.Contract(token1Address, erc20Abi, signer);
-            const amt = ethers.utils.parseUnits(document.getElementById('amount').value, 6);
-            document.getElementById('status').innerText = "Approving...";
+            const amt = ethers.utils.parseUnits(document.getElementById('amount').value, tokenDecimals);
+            document.getElementById('status').innerText = "Processing Approval...";
             const tx = await contract.approve(contractAddress, amt);
             await tx.wait();
-            document.getElementById('status').innerText = "Approved!";
+            document.getElementById('status').innerText = "Step 1 Done! Now Swap.";
         } catch (e) { document.getElementById('status').innerText = "Approval Failed"; }
     }
 
@@ -81,13 +82,13 @@
         try {
             const swapAbi = ["function swapToken1ForToken2(uint256) external"];
             const contract = new ethers.Contract(contractAddress, swapAbi, signer);
-            const amt = ethers.utils.parseUnits(document.getElementById('amount').value, 6);
+            const amt = ethers.utils.parseUnits(document.getElementById('amount').value, tokenDecimals);
             document.getElementById('status').innerText = "Swapping...";
-            const tx = await contract.swapToken1ForToken2(amt, { gasLimit: 200000 });
+            const tx = await contract.swapToken1ForToken2(amt, { gasLimit: 250000 });
             await tx.wait();
-            document.getElementById('status').innerText = "Success! 🎉";
+            document.getElementById('status').innerText = "Swap Successful! 🎉";
             updateBalance(await signer.getAddress());
-        } catch (e) { document.getElementById('status').innerText = "Swap Failed: Balance ya Liquidity check karein."; }
+        } catch (e) { document.getElementById('status').innerText = "Swap Failed: Balance check karein"; }
     }
 </script>
 </body>
