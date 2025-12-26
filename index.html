@@ -1,99 +1,30 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArcSwap | Professional Stable DEX</title>
+    <title>ArcSwap Live</title>
     <script src="https://cdn.ethers.io/lib/ethers-5.7.umd.min.js"></script>
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0f172a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .swap-card { background: #1e293b; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); width: 350px; text-align: center; border: 1px solid #334155; }
-        h2 { color: #38bdf8; margin-bottom: 20px; }
-        .input-group { background: #0f172a; border-radius: 12px; padding: 15px; margin-bottom: 15px; border: 1px solid #334155; }
-        input { background: transparent; border: none; color: white; font-size: 20px; width: 100%; outline: none; }
-        .balance { font-size: 12px; color: #94a3b8; text-align: right; display: block; }
-        button { width: 100%; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.3s; }
-        .btn-connect { background: #38bdf8; color: #0f172a; }
-        .btn-swap { background: #22c55e; color: white; }
-        .btn-approve { background: #f59e0b; color: white; margin-bottom: 5px; }
-        button:hover { opacity: 0.8; transform: translateY(-2px); }
-    </style>
 </head>
-<body>
+<body style="background-color: #0f172a; color: white; text-align: center; font-family: sans-serif;">
+    <h1>ArcSwap Stable</h1>
+    <button id="connectBtn" onclick="connectWallet()" style="padding: 15px; background: #38bdf8; border-radius: 10px; cursor: pointer;">Connect Wallet</button>
+    <p id="walletAddress"></p>
+    <p id="status"></p>
 
-<div class="swap-card">
-    <h2>ArcSwap Stable</h2>
-    <button class="btn-connect" id="connectBtn" onclick="connect()">Connect Wallet</button>
-    <p id="walletAddress" style="font-size: 10px; color: #94a3b8;"></p>
-
-    <div class="input-group">
-        <span class="balance" id="token1Balance">Balance: 0.0</span>
-        <input type="number" id="amount" placeholder="0.0">
-    </div>
-
-    <button class="btn-approve" onclick="approve()">Approve Token</button>
-    <button class="btn-swap" onclick="swap()">Swap Now</button>
-    
-    <p id="status" style="margin-top: 15px; font-size: 13px;"></p>
-</div>
-
-<script>
-    const contractAddress = "0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f";
-    const token1Address = "0x2e666c5a4a3db7841f39f88c2226d14d64b79678"; // Jo deploy script mein tha
-    
-    const abi = [
-        "function swapToken1ForToken2(uint256 amount) external",
-        "function approve(address spender, uint256 amount) external returns (bool)"
-    ];
-    
-    const erc20Abi = [
-        "function balanceOf(address owner) view returns (uint256)",
-        "function approve(address spender, uint256 amount) external returns (bool)"
-    ];
-
-    let provider, signer, contract;
-
-    async function connect() {
-        if (window.ethereum) {
-            provider = new ethers.providers.Web3Provider(window.ethereum);
-            await provider.send("eth_requestAccounts", []);
-            signer = provider.getSigner();
-            const address = await signer.getAddress();
-            document.getElementById('walletAddress').innerText = address;
-            document.getElementById('connectBtn').innerText = "Connected";
-            updateBalance(address);
-        } else {
-            alert("Please install MetaMask!");
+    <script>
+        async function connectWallet() {
+            if (window.ethereum) {
+                try {
+                    const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const provider = new ethers.providers.Web3Provider(window.ethereum);
+                    document.getElementById('walletAddress').innerText = "Connected: " + accounts[0];
+                    document.getElementById('connectBtn').innerText = "Connected ✅";
+                } catch (err) {
+                    document.getElementById('status').innerText = "Error: " + err.message;
+                }
+            } else {
+                window.open("https://metamask.app.link/dapp/arc-swap-stable.vercel.app");
+            }
         }
-    }
-
-    async function updateBalance(address) {
-        const tokenContract = new ethers.Contract(token1Address, erc20Abi, provider);
-        const balance = await tokenContract.balanceOf(address);
-        document.getElementById('token1Balance').innerText = "Balance: " + ethers.utils.formatEther(balance);
-    }
-
-    async function approve() {
-        try {
-            const tokenContract = new ethers.Contract(token1Address, erc20Abi, signer);
-            const amount = ethers.utils.parseEther(document.getElementById('amount').value);
-            document.getElementById('status').innerText = "Approving...";
-            const tx = await tokenContract.approve(contractAddress, amount);
-            await tx.wait();
-            document.getElementById('status').innerText = "Approval Successful!";
-        } catch (e) { document.getElementById('status').innerText = "Error: " + e.message; }
-    }
-
-    async function swap() {
-        try {
-            const swapContract = new ethers.Contract(contractAddress, abi, signer);
-            const amount = ethers.utils.parseEther(document.getElementById('amount').value);
-            document.getElementById('status').innerText = "Swapping...";
-            const tx = await swapContract.swapToken1ForToken2(amount);
-            await tx.wait();
-            document.getElementById('status').innerText = "Swap Successful! 🎉";
-        } catch (e) { document.getElementById('status').innerText = "Error: " + e.message; }
-    }
-</script>
+    </script>
 </body>
 </html>
