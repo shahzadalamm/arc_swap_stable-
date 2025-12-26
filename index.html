@@ -7,15 +7,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1e293b; padding: 30px; border-radius: 20px; width: 340px; text-align: center; border: 1px solid #334155; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .card { background: #1e293b; padding: 30px; border-radius: 20px; width: 340px; text-align: center; border: 1px solid #334155; }
         .input-box { background: #0f172a; padding: 15px; border-radius: 12px; margin: 15px 0; border: 1px solid #334155; }
         input { background: transparent; border: none; color: white; font-size: 18px; width: 100%; outline: none; }
-        button { width: 100%; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.3s; }
+        button { width: 100%; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
         .btn-connect { background: #38bdf8; color: #0f172a; }
         .btn-disconnect { background: #ef4444; color: white; display: none; margin-top: 5px; font-size: 11px; padding: 5px; }
         .btn-approve { background: #f59e0b; color: white; }
         .btn-swap { background: #22c55e; color: white; }
-        #status { font-size: 12px; color: #38bdf8; margin-top: 15px; min-height: 15px; }
+        #status { font-size: 12px; color: #38bdf8; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -39,24 +39,42 @@
 <script>
     const contractAddress = "0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f";
     const token1Address = "0x2e666c5a4a3db7841f39f88c2226d14d64b79678"; 
+    const ARC_CHAIN_ID = "0x23d"; // Hex for 573
+
     let provider, signer;
+
+    async function switchNetwork() {
+        try {
+            await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: ARC_CHAIN_ID }],
+            });
+        } catch (error) {
+            if (error.code === 4902) {
+                await window.ethereum.request({
+                    method: 'wallet_addEthereumChain',
+                    params: [{
+                        chainId: ARC_CHAIN_ID,
+                        chainName: 'Arc Testnet',
+                        nativeCurrency: { name: 'ARC', symbol: 'ARC', decimals: 18 },
+                        rpcUrls: ['https://rpc-testnet.arc.io'],
+                        blockExplorerUrls: ['https://explorer-testnet.arc.io']
+                    }]
+                });
+            }
+        }
+    }
 
     async function connectWallet() {
         if (window.ethereum) {
-            try {
-                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-                provider = new ethers.providers.Web3Provider(window.ethereum);
-                signer = provider.getSigner();
-                document.getElementById('walletAddress').innerText = accounts[0];
-                document.getElementById('connectBtn').style.display = "none";
-                document.getElementById('disconnectBtn').style.display = "block";
-                document.getElementById('status').innerText = "Connected Successfully!";
-                updateBalance(accounts[0]);
-            } catch (err) {
-                document.getElementById('status').innerText = "User rejected connection.";
-            }
-        } else {
-            window.location.href = "https://metamask.app.link/dapp/arc-swap-stable.vercel.app";
+            await switchNetwork();
+            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+            provider = new ethers.providers.Web3Provider(window.ethereum);
+            signer = provider.getSigner();
+            document.getElementById('walletAddress').innerText = accounts[0];
+            document.getElementById('connectBtn').style.display = "none";
+            document.getElementById('disconnectBtn').style.display = "block";
+            updateBalance(accounts[0]);
         }
     }
 
@@ -65,52 +83,39 @@
         document.getElementById('tokenBalance').innerText = "Balance: 0.0";
         document.getElementById('connectBtn').style.display = "block";
         document.getElementById('disconnectBtn').style.display = "none";
-        document.getElementById('status').innerText = "UI Disconnected.";
         signer = null;
     }
 
     async function updateBalance(address) {
         try {
-            const network = await provider.getNetwork();
-            // Check if on Arc Testnet (Change 573 to your actual Chain ID if different)
-            if (network.chainId !== 573) {
-                document.getElementById('tokenBalance').innerText = "Wrong Network!";
-                return;
-            }
             const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
             const contract = new ethers.Contract(token1Address, erc20Abi, provider);
             const balance = await contract.balanceOf(address);
             document.getElementById('tokenBalance').innerText = "Balance: " + ethers.utils.formatEther(balance);
-        } catch (e) { 
-            document.getElementById('tokenBalance').innerText = "Error Loading Balance";
-        }
+        } catch (e) { console.log(e); }
     }
 
     async function approve() {
-        if(!signer) return alert("Please Connect Wallet First!");
-        try {
-            const erc20Abi = ["function approve(address, uint256) public returns (bool)"];
-            const contract = new ethers.Contract(token1Address, erc20Abi, signer);
-            const amt = ethers.utils.parseEther(document.getElementById('amount').value);
-            document.getElementById('status').innerText = "Approving Transaction...";
-            const tx = await contract.approve(contractAddress, amt);
-            await tx.wait();
-            document.getElementById('status').innerText = "Approved! Now click Swap.";
-        } catch (e) { document.getElementById('status').innerText = "Approval Failed!"; }
+        if(!signer) return alert("Connect Wallet!");
+        const erc20Abi = ["function approve(address, uint256) public returns (bool)"];
+        const contract = new ethers.Contract(token1Address, erc20Abi, signer);
+        const amt = ethers.utils.parseEther(document.getElementById('amount').value);
+        document.getElementById('status').innerText = "Approving...";
+        const tx = await contract.approve(contractAddress, amt);
+        await tx.wait();
+        document.getElementById('status').innerText = "Approved!";
     }
 
     async function swap() {
-        if(!signer) return alert("Please Connect Wallet First!");
-        try {
-            const swapAbi = ["function swapToken1ForToken2(uint256) external"];
-            const contract = new ethers.Contract(contractAddress, swapAbi, signer);
-            const amt = ethers.utils.parseEther(document.getElementById('amount').value);
-            document.getElementById('status').innerText = "Swapping Tokens...";
-            const tx = await contract.swapToken1ForToken2(amt);
-            await tx.wait();
-            document.getElementById('status').innerText = "Swap Successful! 🎉";
-            updateBalance(await signer.getAddress());
-        } catch (e) { document.getElementById('status').innerText = "Swap Failed!"; }
+        if(!signer) return alert("Connect Wallet!");
+        const swapAbi = ["function swapToken1ForToken2(uint256) external"];
+        const contract = new ethers.Contract(contractAddress, swapAbi, signer);
+        const amt = ethers.utils.parseEther(document.getElementById('amount').value);
+        document.getElementById('status').innerText = "Swapping...";
+        const tx = await contract.swapToken1ForToken2(amt);
+        await tx.wait();
+        document.getElementById('status').innerText = "Swap Successful! 🎉";
+        updateBalance(await signer.getAddress());
     }
 </script>
 </body>
