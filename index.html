@@ -3,83 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Synthra | Pro Swap</title>
+    <title>Shahzad Swap | Arc Community</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
-        body { background: #0d1117; color: #c9d1d9; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .card { background: #161b22; padding: 25px; border-radius: 20px; width: 340px; border: 1px solid #30363d; }
-        .input-box { background: #0d1117; padding: 15px; border-radius: 12px; margin: 15px 0; border: 1px solid #30363d; }
-        input, select { background: transparent; border: none; color: white; font-size: 18px; width: 100%; outline: none; margin-top: 5px; }
-        button { width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn-green { background: #238636; color: white; }
-        .btn-blue { background: #1f6feb; color: white; }
-        #status { font-size: 11px; color: #8b949e; margin-top: 15px; background: #010409; padding: 10px; border-radius: 6px; }
+        :root { --primary: #6366f1; --bg: #0f172a; --card: #1e293b; }
+        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .swap-container { background: var(--card); padding: 30px; border-radius: 28px; width: 100%; max-width: 380px; border: 1px solid #334155; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+        .header { text-align: center; margin-bottom: 25px; }
+        .header h1 { margin: 0; font-size: 24px; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .input-box { background: #0f172a; padding: 16px; border-radius: 20px; border: 1px solid #334155; margin-bottom: 10px; }
+        .input-box label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 8px; }
+        .input-row { display: flex; justify-content: space-between; align-items: center; }
+        input { background: transparent; border: none; color: white; font-size: 22px; width: 60%; outline: none; }
+        .token-name { font-weight: 700; color: #f1f5f9; }
+        .btn-main { width: 100%; padding: 16px; border-radius: 18px; border: none; background: var(--primary); color: white; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .btn-main:hover { opacity: 0.9; transform: translateY(-1px); }
+        #status { margin-top: 20px; font-size: 12px; padding: 12px; border-radius: 12px; text-align: center; background: rgba(0,0,0,0.2); border: 1px solid #334155; word-break: break-all; }
+        .balance-txt { font-size: 11px; color: #4ade80; text-align: right; margin-bottom: 4px; }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h3 style="text-align:center;">Synthra Swap</h3>
-    <button class="btn-green" id="connectBtn" onclick="connect()">Connect Wallet</button>
+<div class="swap-container">
+    <div class="header">
+        <h1>Shahzad Swap</h1>
+        <p style="font-size: 12px; color: #94a3b8;">Arc Testnet Community Tool</p>
+    </div>
+
+    <button id="connectBtn" class="btn-main" style="background:#334155;" onclick="connect()">Connect Wallet</button>
+
+    <div class="input-box" style="margin-top:20px;">
+        <div class="balance-txt">USDC Balance: <span id="usdcBal">0.00</span></div>
+        <label>From (Sell)</label>
+        <div class="input-row">
+            <input type="number" id="amtIn" placeholder="0.0" oninput="estimate()">
+            <span class="token-name">USDC</span>
+        </div>
+    </div>
+
+    <div style="text-align:center; margin: -5px 0; color: var(--primary); font-size: 20px;">↓</div>
+
+    <div class="input-box">
+        <label>To (Receive)</label>
+        <div class="input-row">
+            <input type="number" id="amtOut" placeholder="0.0" disabled>
+            <span class="token-name">ARC</span>
+        </div>
+    </div>
+
+    <button class="btn-main" onclick="swap()">Swap Now</button>
     
-    <div class="input-box">
-        <div id="balance" style="font-size:12px; color:#3fb950; text-align:right;">USDC: 0.00</div>
-        <label style="font-size:10px; color:#8b949e;">Sell Amount (USDC)</label>
-        <input type="number" id="amtIn" placeholder="0.0">
-    </div>
-
-    <div class="input-box">
-        <label style="font-size:10px; color:#8b949e;">Swap Into:</label>
-        <select id="targetToken">
-            <option value="ETH">ETH (Native Gas)</option>
-            <option value="USYC">USYC (Circle Fund)</option>
-            <option value="ARC">ARC Governance</option>
-        </select>
-    </div>
-
-    <button class="btn-blue" onclick="startSwap()">Execute Swap</button>
-    <div id="status">Ready</div>
+    <div id="status">Ready to help the community! 🚀</div>
 </div>
 
 <script>
-    const swapContract = "0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f";
+    const CONTRACT_ADDRESS = "0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f";
     let provider, signer, address;
 
     async function connect() {
-        if (!window.ethereum) return alert("Open in MetaMask!");
+        if (!window.ethereum) return alert("Please open in MetaMask Browser");
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         address = accounts[0];
         provider = new ethers.providers.Web3Provider(window.ethereum);
         signer = provider.getSigner();
-        document.getElementById('connectBtn').innerText = "Linked: " + address.substring(0,6);
         
-        // Fetching Native USDC Balance
+        document.getElementById('connectBtn').innerText = address.substring(0,6) + "..." + address.substring(38);
         const bal = await provider.getBalance(address);
-        document.getElementById('balance').innerText = "USDC: " + ethers.utils.formatEther(bal);
-        document.getElementById('status').innerText = "Wallet Connected!";
+        document.getElementById('usdcBal').innerText = parseFloat(ethers.utils.formatEther(bal)).toFixed(4);
+        document.getElementById('status').innerText = "Connected to Arc Testnet ✅";
     }
 
-    async function startSwap() {
-        if(!signer) return alert("Connect first");
+    function estimate() {
+        const val = document.getElementById('amtIn').value;
+        document.getElementById('amtOut').value = (val * 0.95).toFixed(4); // Simple 1:1 estimate minus fee
+    }
+
+    async function swap() {
+        if(!signer) return alert("Connect Wallet First!");
         const amount = document.getElementById('amtIn').value;
-        const target = document.getElementById('targetToken').value;
-        if(!amount) return alert("Enter amount");
+        if(!amount || amount <= 0) return alert("Enter Amount");
 
         try {
-            document.getElementById('status').innerText = `Swapping USDC for ${target}...`;
-            const contract = new ethers.Contract(swapContract, [
-                "function swapToken1ForToken2(uint256) external"
-            ], signer);
+            document.getElementById('status').innerText = "Shahzad Swap: Initializing...";
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, ["function swapToken1ForToken2(uint256) external"], signer);
+            
+            const tx = await contract.swapToken1ForToken2(ethers.utils.parseEther(amount), {
+                gasLimit: 1000000
+            });
 
-            const val = ethers.utils.parseEther(amount);
-            const tx = await contract.swapToken1ForToken2(val, { gasLimit: 500000 });
-
-            document.getElementById('status').innerText = "Waiting for confirm...";
+            document.getElementById('status').innerText = "Tx Sent! Waiting for Block...";
             await tx.wait();
-            document.getElementById('status').innerText = `Success! Swapped to ${target} 🎉`;
+            document.getElementById('status').innerText = "Swap Successful! Community Goal Reached. 🎉";
             connect(); 
         } catch (e) {
-            document.getElementById('status').innerText = "Error: Transaction Reverted (Low Liquidity or Gas)";
+            document.getElementById('status').innerText = "Error: Low Liquidity in Pool. Ensure Contract has ARC tokens.";
+            document.getElementById('status').style.color = "#f87171";
         }
     }
 </script>
