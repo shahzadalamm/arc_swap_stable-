@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArcSwap Stable | Final</title>
+    <title>ArcSwap Stable | Pro</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
@@ -25,7 +25,7 @@
     <p id="walletAddress" style="font-size: 10px; color: #94a3b8; margin: 10px 0; word-break: break-all;"></p>
 
     <div class="input-box">
-        <div style="font-size: 11px; text-align: right; color: #38bdf8;" id="tokenBalance">Checking Balance...</div>
+        <div style="font-size: 12px; text-align: right; color: #38bdf8;" id="tokenBalance">Balance: 0.0</div>
         <input type="number" id="amount" placeholder="0.0">
     </div>
 
@@ -37,21 +37,26 @@
 <script>
     const contractAddress = "0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f";
     const token1Address = "0x2e666c5a4a3db7841f39f88c2226d14d64b79678";
-    let provider, signer, tokenDecimals = 18;
+    let provider, signer, tokenDecimals = 6; // USDC default 6 decimals
 
     async function connectWallet() {
         if (window.ethereum) {
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            provider = new ethers.providers.Web3Provider(window.ethereum);
-            signer = provider.getSigner();
-            document.getElementById('walletAddress').innerText = accounts[0];
-            document.getElementById('connectBtn').innerText = "Wallet Linked ✅";
-            
-            // Get Decimals Automatically
-            const tokenContract = new ethers.Contract(token1Address, ["function decimals() view returns (uint8)"], provider);
-            tokenDecimals = await tokenContract.decimals();
-            
-            updateBalance(accounts[0]);
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                signer = provider.getSigner();
+                
+                document.getElementById('walletAddress').innerText = accounts[0];
+                document.getElementById('connectBtn').innerText = "Wallet Linked ✅";
+                
+                // Auto-detect decimals to fix balance display
+                const tokenContract = new ethers.Contract(token1Address, ["function decimals() view returns (uint8)"], provider);
+                try {
+                    tokenDecimals = await tokenContract.decimals();
+                } catch (e) { tokenDecimals = 6; } // Fallback to 6
+                
+                await updateBalance(accounts[0]);
+            } catch (err) { document.getElementById('status').innerText = "Connection failed."; }
         }
     }
 
@@ -60,8 +65,9 @@
             const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
             const contract = new ethers.Contract(token1Address, erc20Abi, provider);
             const balance = await contract.balanceOf(address);
-            document.getElementById('tokenBalance').innerText = "Balance: " + ethers.utils.formatUnits(balance, tokenDecimals);
-        } catch (e) { document.getElementById('tokenBalance').innerText = "Error Loading Balance"; }
+            const formatted = ethers.utils.formatUnits(balance, tokenDecimals);
+            document.getElementById('tokenBalance').innerText = "Balance: " + formatted;
+        } catch (e) { document.getElementById('tokenBalance').innerText = "Balance Error"; }
     }
 
     async function approve() {
@@ -70,11 +76,11 @@
             const erc20Abi = ["function approve(address, uint256) public returns (bool)"];
             const contract = new ethers.Contract(token1Address, erc20Abi, signer);
             const amt = ethers.utils.parseUnits(document.getElementById('amount').value, tokenDecimals);
-            document.getElementById('status').innerText = "Processing Approval...";
+            document.getElementById('status').innerText = "Approving...";
             const tx = await contract.approve(contractAddress, amt);
             await tx.wait();
-            document.getElementById('status').innerText = "Step 1 Done! Now Swap.";
-        } catch (e) { document.getElementById('status').innerText = "Approval Failed"; }
+            document.getElementById('status').innerText = "Approved! Now Swap.";
+        } catch (e) { document.getElementById('status').innerText = "Approve Failed"; }
     }
 
     async function swap() {
@@ -88,7 +94,7 @@
             await tx.wait();
             document.getElementById('status').innerText = "Swap Successful! 🎉";
             updateBalance(await signer.getAddress());
-        } catch (e) { document.getElementById('status').innerText = "Swap Failed: Balance check karein"; }
+        } catch (e) { document.getElementById('status').innerText = "Swap Failed (Check Gas/Liquidity)"; }
     }
 </script>
 </body>
