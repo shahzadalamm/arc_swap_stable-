@@ -3,104 +3,84 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArcSwap Stable | Fixed</title>
+    <title>Synthra | Pro Swap</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
-        body { background: #0f172a; color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1e293b; padding: 30px; border-radius: 20px; width: 340px; text-align: center; border: 1px solid #334155; }
-        .input-box { background: #0f172a; padding: 15px; border-radius: 12px; margin: 15px 0; border: 1px solid #334155; }
-        input { background: transparent; border: none; color: white; font-size: 18px; width: 100%; outline: none; }
-        button { width: 100%; padding: 12px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .btn-connect { background: #38bdf8; color: #0f172a; }
-        .btn-approve { background: #f59e0b; color: white; }
-        .btn-swap { background: #22c55e; color: white; }
-        #status { font-size: 12px; color: #38bdf8; margin-top: 15px; }
+        body { background: #0d1117; color: #c9d1d9; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .card { background: #161b22; padding: 25px; border-radius: 20px; width: 340px; border: 1px solid #30363d; }
+        .input-box { background: #0d1117; padding: 15px; border-radius: 12px; margin: 15px 0; border: 1px solid #30363d; }
+        input, select { background: transparent; border: none; color: white; font-size: 18px; width: 100%; outline: none; margin-top: 5px; }
+        button { width: 100%; padding: 15px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-green { background: #238636; color: white; }
+        .btn-blue { background: #1f6feb; color: white; }
+        #status { font-size: 11px; color: #8b949e; margin-top: 15px; background: #010409; padding: 10px; border-radius: 6px; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>ArcSwap Stable</h2>
-    <button id="connectBtn" class="btn-connect" onclick="connectWallet()">Connect Wallet</button>
-    <p id="walletAddress" style="font-size: 10px; color: #94a3b8; margin: 10px 0; word-break: break-all;"></p>
-
+    <h3 style="text-align:center;">Synthra Swap</h3>
+    <button class="btn-green" id="connectBtn" onclick="connect()">Connect Wallet</button>
+    
     <div class="input-box">
-        <div style="font-size: 12px; text-align: right; color: #38bdf8;" id="tokenBalance">USDC Balance: --</div>
-        <input type="number" id="amount" placeholder="0.0">
+        <div id="balance" style="font-size:12px; color:#3fb950; text-align:right;">USDC: 0.00</div>
+        <label style="font-size:10px; color:#8b949e;">Sell Amount (USDC)</label>
+        <input type="number" id="amtIn" placeholder="0.0">
     </div>
 
-    <button class="btn-approve" onclick="approve()">1. Approve</button>
-    <button class="btn-swap" onclick="swap()">2. Swap Now</button>
-    <p id="status"></p>
+    <div class="input-box">
+        <label style="font-size:10px; color:#8b949e;">Swap Into:</label>
+        <select id="targetToken">
+            <option value="ETH">ETH (Native Gas)</option>
+            <option value="USYC">USYC (Circle Fund)</option>
+            <option value="ARC">ARC Governance</option>
+        </select>
+    </div>
+
+    <button class="btn-blue" onclick="startSwap()">Execute Swap</button>
+    <div id="status">Ready</div>
 </div>
 
 <script>
-    const contractAddress = "0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f";
-    const token1Address = "0x2e666c5a4a3db7841f39f88c2226d14d64b79678";
-    let provider, signer;
+    const swapContract = "0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f";
+    let provider, signer, address;
 
-    async function connectWallet() {
-        if (!window.ethereum) return alert("Please open in MetaMask Browser!");
+    async function connect() {
+        if (!window.ethereum) return alert("Open in MetaMask!");
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        address = accounts[0];
+        provider = new ethers.providers.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        document.getElementById('connectBtn').innerText = "Linked: " + address.substring(0,6);
         
-        try {
-            const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
-            provider = new ethers.providers.Web3Provider(window.ethereum);
-            
-            // Network check
-            const network = await provider.getNetwork();
-            if (network.chainId !== 573) {
-                document.getElementById('status').innerText = "⚠️ Switch MetaMask to Arc Testnet!";
-                return;
-            }
-
-            signer = provider.getSigner();
-            document.getElementById('walletAddress').innerText = accounts[0];
-            document.getElementById('connectBtn').innerText = "Connected ✅";
-            
-            updateBalance(accounts[0]);
-        } catch (err) {
-            document.getElementById('status').innerText = "Connection Failed.";
-        }
+        // Fetching Native USDC Balance
+        const bal = await provider.getBalance(address);
+        document.getElementById('balance').innerText = "USDC: " + ethers.utils.formatEther(bal);
+        document.getElementById('status').innerText = "Wallet Connected!";
     }
 
-    async function updateBalance(address) {
+    async function startSwap() {
+        if(!signer) return alert("Connect first");
+        const amount = document.getElementById('amtIn').value;
+        const target = document.getElementById('targetToken').value;
+        if(!amount) return alert("Enter amount");
+
         try {
-            const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
-            const contract = new ethers.Contract(token1Address, erc20Abi, provider);
-            const balance = await contract.balanceOf(address);
-            // Dynamic check: 2 USDC (6 decimals) will show as 2.0
-            const formatted = ethers.utils.formatUnits(balance, 6);
-            document.getElementById('tokenBalance').innerText = "USDC: " + formatted;
+            document.getElementById('status').innerText = `Swapping USDC for ${target}...`;
+            const contract = new ethers.Contract(swapContract, [
+                "function swapToken1ForToken2(uint256) external"
+            ], signer);
+
+            const val = ethers.utils.parseEther(amount);
+            const tx = await contract.swapToken1ForToken2(val, { gasLimit: 500000 });
+
+            document.getElementById('status').innerText = "Waiting for confirm...";
+            await tx.wait();
+            document.getElementById('status').innerText = `Success! Swapped to ${target} 🎉`;
+            connect(); 
         } catch (e) {
-            document.getElementById('tokenBalance').innerText = "Wrong Network or Token Address";
+            document.getElementById('status').innerText = "Error: Transaction Reverted (Low Liquidity or Gas)";
         }
-    }
-
-    async function approve() {
-        if(!signer) return alert("Connect Wallet First!");
-        try {
-            const erc20Abi = ["function approve(address, uint256) public returns (bool)"];
-            const contract = new ethers.Contract(token1Address, erc20Abi, signer);
-            const amt = ethers.utils.parseUnits(document.getElementById('amount').value, 6);
-            document.getElementById('status').innerText = "Approving USDC...";
-            const tx = await contract.approve(contractAddress, amt);
-            await tx.wait();
-            document.getElementById('status').innerText = "Approval Done! Press Swap.";
-        } catch (e) { document.getElementById('status').innerText = "Approve Failed."; }
-    }
-
-    async function swap() {
-        if(!signer) return alert("Connect Wallet First!");
-        try {
-            const swapAbi = ["function swapToken1ForToken2(uint256) external"];
-            const contract = new ethers.Contract(contractAddress, swapAbi, signer);
-            const amt = ethers.utils.parseUnits(document.getElementById('amount').value, 6);
-            document.getElementById('status').innerText = "Swapping...";
-            const tx = await contract.swapToken1ForToken2(amt, { gasLimit: 300000 });
-            await tx.wait();
-            document.getElementById('status').innerText = "Swap Success! 🎉";
-            updateBalance(await signer.getAddress());
-        } catch (e) { document.getElementById('status').innerText = "Swap Failed (Check Gas/Balance)"; }
     }
 </script>
 </body>
