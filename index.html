@@ -3,39 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shahzad Swap | Arc Solver</title>
+    <title>Shahzad Swap | Arc Fix</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
         :root { --primary: #3b82f6; --bg: #0f172a; --card: #1e293b; }
-        body { background: var(--bg); color: white; font-family: sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .swap-card { background: var(--card); padding: 25px; border-radius: 24px; width: 360px; border: 1px solid #334155; }
+        body { background: var(--bg); color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .swap-card { background: var(--card); padding: 25px; border-radius: 24px; width: 100%; max-width: 360px; border: 1px solid #334155; }
         .input-box { background: #0f172a; padding: 15px; border-radius: 16px; margin: 10px 0; border: 1px solid #334155; }
         input { background: transparent; border: none; color: white; font-size: 20px; width: 100%; outline: none; }
         .btn { width: 100%; padding: 16px; border-radius: 16px; border: none; background: var(--primary); color: white; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        #status { font-size: 11px; margin-top: 15px; color: #94a3b8; text-align: center; padding: 10px; border-radius: 10px; background: rgba(0,0,0,0.2); }
+        #status { font-size: 11px; margin-top: 15px; color: #94a3b8; text-align: center; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; border: 1px solid #334155; }
+        .admin-section { margin-top: 20px; border-top: 1px dashed #334155; padding-top: 20px; width: 100%; max-width: 360px; }
     </style>
 </head>
 <body>
 
 <div class="swap-card">
     <h2 style="text-align:center;">Shahzad Swap</h2>
-    <p style="text-align:center; font-size:12px; color:#94a3b8;">Community Liquidity Bridge</p>
-    
     <button class="btn" style="background:#334155;" onclick="connect()">Connect Wallet</button>
 
     <div class="input-box">
-        <label style="font-size:10px;">Amount USDC</label>
+        <label style="font-size:10px; color:#4ade80;">USDC Balance: <span id="userBal">0.0</span></label>
         <input type="number" id="amtIn" placeholder="0.1">
     </div>
 
-    <button class="btn" onclick="checkAndSwap()">Swap via Router</button>
-    
-    <div id="status">Checking Pool Status...</div>
+    <button class="btn" onclick="executeSwap()">Swap Now</button>
+    <div id="status">Status: Waiting for Liquidity...</div>
+</div>
+
+<div class="admin-section">
+    <h4 style="color:#fbbf24; text-align:center;">Owner Panel: Fix Liquidity</h4>
+    <p style="font-size:10px; text-align:center; color:#94a3b8;">Enter amount to add to pool (Try 1.0)</p>
+    <input type="number" id="liqAmt" style="width:100%; background:#1e293b; color:white; border:1px solid #fbbf24; padding:10px; border-radius:10px;" placeholder="1.0">
+    <button class="btn" style="background:#fbbf24; color:#000;" onclick="addLiquidity()">Add USDC to Pool</button>
 </div>
 
 <script>
     const ROUTER = "0xcC81600F595d24388837e2E1815858F5b18E6627";
-    const FACTORY = "0x19aB9797AcE9313A0d304B76E0d08976C8B562c2";
     const USDC = "0x3600000000000000000000000000000000000000"; 
     const WETH = "0x2e666c5a4a3db7841f39f88c2226d14d64b79678";
 
@@ -46,38 +50,37 @@
         address = accounts[0];
         provider = new ethers.providers.Web3Provider(window.ethereum);
         signer = provider.getSigner();
-        document.getElementById('status').innerText = "Wallet Linked!";
+        const b = await provider.getBalance(address);
+        document.getElementById('userBal').innerText = parseFloat(ethers.utils.formatEther(b)).toFixed(4);
+        document.getElementById('status').innerText = "Wallet Connected! ✅";
     }
 
-    async function checkAndSwap() {
-        if(!signer) return alert("Connect first");
-        
+    async function addLiquidity() {
+        if(!signer) return alert("Connect Wallet!");
+        const amount = document.getElementById('liqAmt').value;
         try {
-            // Step 1: Check if Pool exists via Factory
-            const factoryContract = new ethers.Contract(FACTORY, [
-                "function getPair(address, address) view returns (address)"
-            ], provider);
-            
-            const pairAddress = await factoryContract.getPair(USDC, WETH);
-            
-            if(pairAddress === "0x0000000000000000000000000000000000000000") {
-                document.getElementById('status').innerText = "Error: Pool not found on Arc Factory. You need to Create Pool first.";
-                return;
-            }
-
-            // Step 2: If pool exists, execute swap
-            const router = new ethers.Contract(ROUTER, [
-                "function swapExactETHForTokens(uint, address[], address, uint) external payable"
-            ], signer);
-
-            const tx = await router.swapExactETHForTokens(
-                0, [USDC, WETH], address, Math.floor(Date.now()/1000)+600,
-                { value: ethers.utils.parseEther(document.getElementById('amtIn').value) }
-            );
+            document.getElementById('status').innerText = "Adding Liquidity to Pool...";
+            // Liquidity adding logic for testnet (sending to Router/Contract)
+            const tx = await signer.sendTransaction({
+                to: "0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f", // Your ShahzadSwap Contract
+                value: ethers.utils.parseEther(amount)
+            });
             await tx.wait();
-            document.getElementById('status').innerText = "Swap Done! 🎉";
+            document.getElementById('status').innerText = "Liquidity Added! Now Community can swap.";
+        } catch (e) { alert("Error: " + e.message); }
+    }
+
+    async function executeSwap() {
+        if(!signer) return alert("Connect first");
+        const amt = document.getElementById('amtIn').value;
+        try {
+            const contract = new ethers.Contract("0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f", ["function swapToken1ForToken2(uint256) external"], signer);
+            const tx = await contract.swapToken1ForToken2(ethers.utils.parseEther(amt), { gasLimit: 500000 });
+            document.getElementById('status').innerText = "Swapping...";
+            await tx.wait();
+            document.getElementById('status').innerText = "Swap Successful! 🎉";
         } catch (e) {
-            document.getElementById('status').innerText = "Router Error: Liquidity is 0. Community must add liquidity to Factory first.";
+            document.getElementById('status').innerText = "Error: Pool still empty. Use Owner Panel first.";
         }
     }
 </script>
