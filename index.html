@@ -3,101 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shahzad Swap | Arc Community</title>
+    <title>Shahzad Swap | Official Router</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
     <style>
-        :root { --primary: #6366f1; --bg: #0f172a; --card: #1e293b; }
-        body { background: var(--bg); color: white; font-family: 'Inter', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
-        .swap-container { background: var(--card); padding: 30px; border-radius: 28px; width: 100%; max-width: 380px; border: 1px solid #334155; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
-        .header { text-align: center; margin-bottom: 25px; }
-        .header h1 { margin: 0; font-size: 24px; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        .input-box { background: #0f172a; padding: 16px; border-radius: 20px; border: 1px solid #334155; margin-bottom: 10px; }
-        .input-box label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 8px; }
-        .input-row { display: flex; justify-content: space-between; align-items: center; }
-        input { background: transparent; border: none; color: white; font-size: 22px; width: 60%; outline: none; }
-        .token-name { font-weight: 700; color: #f1f5f9; }
-        .btn-main { width: 100%; padding: 16px; border-radius: 18px; border: none; background: var(--primary); color: white; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-        .btn-main:hover { opacity: 0.9; transform: translateY(-1px); }
-        #status { margin-top: 20px; font-size: 12px; padding: 12px; border-radius: 12px; text-align: center; background: rgba(0,0,0,0.2); border: 1px solid #334155; word-break: break-all; }
-        .balance-txt { font-size: 11px; color: #4ade80; text-align: right; margin-bottom: 4px; }
+        :root { --primary: #3b82f6; --bg: #030712; --card: #111827; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+        .swap-card { background: var(--card); padding: 25px; border-radius: 24px; width: 350px; border: 1px solid #1f2937; box-shadow: 0 25px 50px rgba(0,0,0,0.5); }
+        .input-box { background: #1f2937; padding: 15px; border-radius: 16px; margin: 10px 0; }
+        input { background: transparent; border: none; color: white; font-size: 20px; width: 100%; outline: none; }
+        .btn-swap { width: 100%; padding: 16px; border-radius: 16px; border: none; background: var(--primary); color: white; font-weight: bold; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        #status { font-size: 12px; margin-top: 15px; color: #94a3b8; text-align: center; }
+        .token-info { display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-bottom: 5px; }
     </style>
 </head>
 <body>
 
-<div class="swap-container">
-    <div class="header">
-        <h1>Shahzad Swap</h1>
-        <p style="font-size: 12px; color: #94a3b8;">Arc Testnet Community Tool</p>
-    </div>
-
-    <button id="connectBtn" class="btn-main" style="background:#334155;" onclick="connect()">Connect Wallet</button>
-
-    <div class="input-box" style="margin-top:20px;">
-        <div class="balance-txt">USDC Balance: <span id="usdcBal">0.00</span></div>
-        <label>From (Sell)</label>
-        <div class="input-row">
-            <input type="number" id="amtIn" placeholder="0.0" oninput="estimate()">
-            <span class="token-name">USDC</span>
-        </div>
-    </div>
-
-    <div style="text-align:center; margin: -5px 0; color: var(--primary); font-size: 20px;">↓</div>
+<div class="swap-card">
+    <h2 style="text-align:center; margin-bottom:20px;">Shahzad Swap</h2>
+    <button id="connectBtn" class="btn-swap" style="background:#374151;" onclick="connect()">Connect Wallet</button>
 
     <div class="input-box">
-        <label>To (Receive)</label>
-        <div class="input-row">
-            <input type="number" id="amtOut" placeholder="0.0" disabled>
-            <span class="token-name">ARC</span>
+        <div class="token-info"><span>From</span><span id="bal">Balance: 0.0</span></div>
+        <div style="display:flex; justify-content:space-between;">
+            <input type="number" id="amountIn" placeholder="0.0">
+            <span style="font-weight:bold;">USDC</span>
         </div>
     </div>
 
-    <button class="btn-main" onclick="swap()">Swap Now</button>
-    
-    <div id="status">Ready to help the community! 🚀</div>
+    <div style="text-align:center; margin: 5px 0;">↓</div>
+
+    <div class="input-box">
+        <div class="token-info"><span>To (Estimated)</span></div>
+        <div style="display:flex; justify-content:space-between;">
+            <input type="number" id="amountOut" placeholder="0.0" disabled>
+            <span style="font-weight:bold;">WETH</span>
+        </div>
+    </div>
+
+    <button class="btn-swap" onclick="executeRouterSwap()">Swap via Router</button>
+    <div id="status">Connected to Arc Router ✅</div>
 </div>
 
 <script>
-    const CONTRACT_ADDRESS = "0xF94430860CA78B4BF9cC28f24D3c4B38C87d9A0f";
+    // Official Arc Router & Token Addresses
+    const ROUTER_ADDR = "0xcC81600F595d24388837e2E1815858F5b18E6627";
+    const USDC_ADDR = "0x3600000000000000000000000000000000000000"; // Native/Gas
+    const WETH_ADDR = "0x2e666c5a4a3db7841f39f88c2226d14d64b79678";
+
     let provider, signer, address;
 
     async function connect() {
-        if (!window.ethereum) return alert("Please open in MetaMask Browser");
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
         address = accounts[0];
         provider = new ethers.providers.Web3Provider(window.ethereum);
         signer = provider.getSigner();
-        
-        document.getElementById('connectBtn').innerText = address.substring(0,6) + "..." + address.substring(38);
+        document.getElementById('connectBtn').innerText = "Wallet: " + address.substring(0,6);
         const bal = await provider.getBalance(address);
-        document.getElementById('usdcBal').innerText = parseFloat(ethers.utils.formatEther(bal)).toFixed(4);
-        document.getElementById('status').innerText = "Connected to Arc Testnet ✅";
+        document.getElementById('bal').innerText = "Balance: " + parseFloat(ethers.utils.formatEther(bal)).toFixed(4);
     }
 
-    function estimate() {
-        const val = document.getElementById('amtIn').value;
-        document.getElementById('amtOut').value = (val * 0.95).toFixed(4); // Simple 1:1 estimate minus fee
-    }
-
-    async function swap() {
-        if(!signer) return alert("Connect Wallet First!");
-        const amount = document.getElementById('amtIn').value;
-        if(!amount || amount <= 0) return alert("Enter Amount");
-
+    async function executeRouterSwap() {
+        if(!signer) return;
+        const amount = document.getElementById('amountIn').value;
         try {
-            document.getElementById('status').innerText = "Shahzad Swap: Initializing...";
-            const contract = new ethers.Contract(CONTRACT_ADDRESS, ["function swapToken1ForToken2(uint256) external"], signer);
+            document.getElementById('status').innerText = "Routing through Arc Network...";
             
-            const tx = await contract.swapToken1ForToken2(ethers.utils.parseEther(amount), {
-                gasLimit: 1000000
-            });
+            // Uniswap-style Router ABI for swapExactETHForTokens
+            const router = new ethers.Contract(ROUTER_ADDR, [
+                "function swapExactETHForTokens(uint amountOutMin, address[] calldata path, address to, uint deadline) external payable returns (uint[] memory amounts)"
+            ], signer);
 
-            document.getElementById('status').innerText = "Tx Sent! Waiting for Block...";
+            const path = [USDC_ADDR, WETH_ADDR]; // Path from USDC to WETH
+            const deadline = Math.floor(Date.now() / 1000) + 60 * 20; // 20 mins
+
+            const tx = await router.swapExactETHForTokens(
+                0, // amountOutMin (0 for testing, slippage not handled)
+                path,
+                address,
+                deadline,
+                { 
+                    value: ethers.utils.parseEther(amount),
+                    gasLimit: 300000 
+                }
+            );
+
             await tx.wait();
-            document.getElementById('status').innerText = "Swap Successful! Community Goal Reached. 🎉";
-            connect(); 
+            document.getElementById('status').innerText = "Swap Completed! 🎉";
         } catch (e) {
-            document.getElementById('status').innerText = "Error: Low Liquidity in Pool. Ensure Contract has ARC tokens.";
-            document.getElementById('status').style.color = "#f87171";
+            console.error(e);
+            document.getElementById('status').innerText = "Router Error: Check Liquidity or Gas";
         }
     }
 </script>
